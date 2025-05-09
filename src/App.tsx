@@ -1,35 +1,66 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useState, useEffect, useRef } from "react";
+import "./App.css";
 
 function App() {
-  const [count, setCount] = useState(0)
+	const [messages, setMessages] = useState(["hello from server"]);
+	const wsRef = useRef<HTMLInputElement>(null);
+	const inputRef = useRef<HTMLInputElement>(null);
+	useEffect(() => {
+		const ws = new WebSocket("ws://localhost:8081");
 
-  return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+		ws.onmessage = (event) => {
+			setMessages((m) => [...m, event.data]);
+		};
+		//@ts-ignore
+		wsRef.current = ws;
+
+		ws.onopen = () => {
+			ws.send(
+				JSON.stringify({
+					type: "join",
+					payload: {
+						roomId: "red",
+					},
+				})
+			);
+		};
+		return () => {
+			ws.close();
+		};
+	}, []);
+	return (
+		<div className="h-screen bg-black w-full">
+			<br /> <br /> <br />
+			<div className="h-[85%] overflow-y-auto">
+				{messages.map((message) => (
+					<div className="m-8">
+						<span className="bg-white text-black rounded p-4"> {message}</span>
+					</div>
+				))}
+			</div>
+			<div className="w-full bg-white flex">
+				<input ref={inputRef} id="message" className="flex-1 p-4" />
+				<button
+					onClick={() => {
+						//@ts-ignore
+						const message = inputRef.current?.value;
+						//@ts-ignore
+						wsRef.current.send(
+							JSON.stringify({
+								type: "chat",
+								payload: {
+									message: message,
+								},
+							})
+						);
+					}}
+					className="bg-purple-600 text-white p-4"
+				>
+					Send Message
+				</button>
+			</div>
+		</div>
+	);
 }
 
-export default App
+export default App;
